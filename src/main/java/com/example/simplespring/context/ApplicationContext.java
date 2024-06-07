@@ -12,6 +12,7 @@ import java.util.Map;
 
 public class ApplicationContext {
     private final Map<String, Object> beans = new HashMap<>();
+    private final Map<String, Scope> beanScopes = new HashMap<>();
 
     public ApplicationContext(String basePackage) {
         try {
@@ -36,6 +37,7 @@ public class ApplicationContext {
                     Component component = clazz.getAnnotation(Component.class);
                     String beanName = component.value().isEmpty() ? clazz.getSimpleName() : component.value();
                     beans.put(beanName, clazz.newInstance());
+                    beanScopes.put(beanName, Scope.SINGLETON);
                 }
             }
         }
@@ -50,7 +52,7 @@ public class ApplicationContext {
                     Object dependency = findBean(field);
                     if (dependency != null) {
                         field.setAccessible(true);
-                        field.set(bean, dependency);
+                        field.set(bean, dependency); // default scope
                     }
                 }
             }
@@ -66,6 +68,21 @@ public class ApplicationContext {
     }
 
     public Object getBean(String name) {
+        Scope scope = beanScopes.get(name);
+        if (scope == Scope.PROTOTYPE) {
+            return createBean(name);
+        }
         return beans.get(name);
+    }
+
+    private Object createBean(String name) {
+        // create a new instance of the bean
+        Class<?> clazz = beans.get(name).getClass();
+        try {
+            return clazz.newInstance();
+        } catch (InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
